@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import pytest
 
-from mastra import Mastra, AsyncMastra
+from mastra_client_py import MastraClient, AsyncMastraClient
 
 base_url = os.environ.get("TEST_API_BASE_URL", "http://127.0.0.1:4010")
 
@@ -16,7 +16,7 @@ class TestResult:
     parametrize = pytest.mark.parametrize("client", [False, True], indirect=True, ids=["loose", "strict"])
 
     @parametrize
-    def test_method_retrieve(self, client: Mastra) -> None:
+    def test_method_retrieve(self, client: MastraClient) -> None:
         result = client.tools.result.retrieve(
             result_id="resultId",
             tool_id="toolId",
@@ -24,7 +24,7 @@ class TestResult:
         assert result is None
 
     @parametrize
-    def test_raw_response_retrieve(self, client: Mastra) -> None:
+    def test_raw_response_retrieve(self, client: MastraClient) -> None:
         response = client.tools.result.with_raw_response.retrieve(
             result_id="resultId",
             tool_id="toolId",
@@ -36,7 +36,7 @@ class TestResult:
         assert result is None
 
     @parametrize
-    def test_streaming_response_retrieve(self, client: Mastra) -> None:
+    def test_streaming_response_retrieve(self, client: MastraClient) -> None:
         with client.tools.result.with_streaming_response.retrieve(
             result_id="resultId",
             tool_id="toolId",
@@ -50,7 +50,7 @@ class TestResult:
         assert cast(Any, response.is_closed) is True
 
     @parametrize
-    def test_path_params_retrieve(self, client: Mastra) -> None:
+    def test_path_params_retrieve(self, client: MastraClient) -> None:
         with pytest.raises(ValueError, match=r"Expected a non-empty value for `tool_id` but received ''"):
             client.tools.result.with_raw_response.retrieve(
                 result_id="resultId",
@@ -68,7 +68,7 @@ class TestAsyncResult:
     parametrize = pytest.mark.parametrize("async_client", [False, True], indirect=True, ids=["loose", "strict"])
 
     @parametrize
-    async def test_method_retrieve(self, async_client: AsyncMastra) -> None:
+    async def test_method_retrieve(self, async_client: AsyncMastraClient) -> None:
         result = await async_client.tools.result.retrieve(
             result_id="resultId",
             tool_id="toolId",
@@ -76,7 +76,7 @@ class TestAsyncResult:
         assert result is None
 
     @parametrize
-    async def test_raw_response_retrieve(self, async_client: AsyncMastra) -> None:
+    async def test_raw_response_retrieve(self, async_client: AsyncMastraClient) -> None:
         response = await async_client.tools.result.with_raw_response.retrieve(
             result_id="resultId",
             tool_id="toolId",
@@ -88,7 +88,7 @@ class TestAsyncResult:
         assert result is None
 
     @parametrize
-    async def test_streaming_response_retrieve(self, async_client: AsyncMastra) -> None:
+    async def test_streaming_response_retrieve(self, async_client: AsyncMastraClient) -> None:
         async with async_client.tools.result.with_streaming_response.retrieve(
             result_id="resultId",
             tool_id="toolId",
@@ -102,7 +102,7 @@ class TestAsyncResult:
         assert cast(Any, response.is_closed) is True
 
     @parametrize
-    async def test_path_params_retrieve(self, async_client: AsyncMastra) -> None:
+    async def test_path_params_retrieve(self, async_client: AsyncMastraClient) -> None:
         with pytest.raises(ValueError, match=r"Expected a non-empty value for `tool_id` but received ''"):
             await async_client.tools.result.with_raw_response.retrieve(
                 result_id="resultId",

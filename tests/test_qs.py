@@ -4,7 +4,7 @@ from urllib.parse import unquote
 
 import pytest
 
-from mastra._qs import Querystring, stringify
+from mastra_client_py._qs import Querystring, stringify
 
 
 def test_empty() -> None:
