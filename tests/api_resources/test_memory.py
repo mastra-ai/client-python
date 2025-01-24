@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import pytest
 
-from mastra import Mastra, AsyncMastra
+from mastra_client_py import MastraClient, AsyncMastraClient
 
 base_url = os.environ.get("TEST_API_BASE_URL", "http://127.0.0.1:4010")
 
@@ -16,14 +16,14 @@ class TestMemory:
     parametrize = pytest.mark.parametrize("client", [False, True], indirect=True, ids=["loose", "strict"])
 
     @parametrize
-    def test_method_save_messages(self, client: Mastra) -> None:
+    def test_method_save_messages(self, client: MastraClient) -> None:
         memory = client.memory.save_messages(
             messages=[{}],
         )
         assert memory is None
 
     @parametrize
-    def test_raw_response_save_messages(self, client: Mastra) -> None:
+    def test_raw_response_save_messages(self, client: MastraClient) -> None:
         response = client.memory.with_raw_response.save_messages(
             messages=[{}],
         )
@@ -34,7 +34,7 @@ class TestMemory:
         assert memory is None
 
     @parametrize
-    def test_streaming_response_save_messages(self, client: Mastra) -> None:
+    def test_streaming_response_save_messages(self, client: MastraClient) -> None:
         with client.memory.with_streaming_response.save_messages(
             messages=[{}],
         ) as response:
@@ -51,14 +51,14 @@ class TestAsyncMemory:
     parametrize = pytest.mark.parametrize("async_client", [False, True], indirect=True, ids=["loose", "strict"])
 
     @parametrize
-    async def test_method_save_messages(self, async_client: AsyncMastra) -> None:
+    async def test_method_save_messages(self, async_client: AsyncMastraClient) -> None:
         memory = await async_client.memory.save_messages(
             messages=[{}],
         )
         assert memory is None
 
     @parametrize
-    async def test_raw_response_save_messages(self, async_client: AsyncMastra) -> None:
+    async def test_raw_response_save_messages(self, async_client: AsyncMastraClient) -> None:
         response = await async_client.memory.with_raw_response.save_messages(
             messages=[{}],
         )
@@ -69,7 +69,7 @@ class TestAsyncMemory:
         assert memory is None
 
     @parametrize
-    async def test_streaming_response_save_messages(self, async_client: AsyncMastra) -> None:
+    async def test_streaming_response_save_messages(self, async_client: AsyncMastraClient) -> None:
         async with async_client.memory.with_streaming_response.save_messages(
             messages=[{}],
         ) as response:

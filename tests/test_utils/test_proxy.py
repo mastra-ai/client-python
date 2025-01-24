@@ -2,7 +2,7 @@ import operator
 from typing import Any
 from typing_extensions import override
 
-from mastra._utils import LazyProxy
+from mastra_client_py._utils import LazyProxy
 
 
 class RecursiveLazyProxy(LazyProxy[Any]):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from mastra._utils import required_args
+from mastra_client_py._utils import required_args
 
 
 def test_too_many_positional_params() -> None:
