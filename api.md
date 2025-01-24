@@ -6,12 +6,18 @@ Methods:
 
 # Agents
 
+Types:
+
+```python
+from mastra_client_py.types import AgentStreamResponse
+```
+
 Methods:
 
 - <code title="get /api/agents/{agentId}">client.agents.<a href="./src/mastra_client_py/resources/agents/agents.py">retrieve</a>(agent_id) -> None</code>
 - <code title="get /api/agents">client.agents.<a href="./src/mastra_client_py/resources/agents/agents.py">list</a>() -> None</code>
 - <code title="post /api/agents/{agentId}/generate">client.agents.<a href="./src/mastra_client_py/resources/agents/agents.py">generate</a>(agent_id, \*\*<a href="src/mastra_client_py/types/agent_generate_params.py">params</a>) -> None</code>
-- <code title="post /api/agents/{agentId}/stream">client.agents.<a href="./src/mastra_client_py/resources/agents/agents.py">stream</a>(agent_id, \*\*<a href="src/mastra_client_py/types/agent_stream_params.py">params</a>) -> None</code>
+- <code title="post /api/agents/{agentId}/stream">client.agents.<a href="./src/mastra_client_py/resources/agents/agents.py">stream</a>(agent_id, \*\*<a href="src/mastra_client_py/types/agent_stream_params.py">params</a>) -> str</code>
 
 ## Tools
 
