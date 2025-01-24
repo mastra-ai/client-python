@@ -8,8 +8,8 @@ from typing import Any, TypeVar, Iterator, cast
 from datetime import date, datetime
 from typing_extensions import Literal, get_args, get_origin, assert_type
 
-from mastra._types import Omit, NoneType
-from mastra._utils import (
+from mastra_client_py._types import Omit, NoneType
+from mastra_client_py._utils import (
     is_dict,
     is_list,
     is_list_type,
@@ -18,8 +18,8 @@ from mastra._utils import (
     is_annotated_type,
     is_type_alias_type,
 )
-from mastra._compat import PYDANTIC_V2, field_outer_type, get_model_fields
-from mastra._models import BaseModel
+from mastra_client_py._compat import PYDANTIC_V2, field_outer_type, get_model_fields
+from mastra_client_py._models import BaseModel
 
 BaseModelT = TypeVar("BaseModelT", bound=BaseModel)
 

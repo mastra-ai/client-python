@@ -1,8 +1,8 @@
-# Mastra Python API library
+# Mastra Client Python API library
 
-[![PyPI version](https://img.shields.io/pypi/v/mastra.svg)](https://pypi.org/project/mastra/)
+[![PyPI version](https://img.shields.io/pypi/v/mastra-client-py.svg)](https://pypi.org/project/mastra-client-py/)
 
-The Mastra Python library provides convenient access to the Mastra REST API from any Python 3.8+
+The Mastra Client Python library provides convenient access to the Mastra Client REST API from any Python 3.8+
 application. The library includes type definitions for all request params and response fields,
 and offers both synchronous and asynchronous clients powered by [httpx](https://github.com/encode/httpx).
 
@@ -10,43 +10,40 @@ It is generated with [Stainless](https://www.stainlessapi.com/).
 
 ## Documentation
 
-The REST API documentation can be found on [docs.mastra.com](https://docs.mastra.com). The full API of this library can be found in [api.md](api.md).
+The REST API documentation can be found on [mastra.ai](https://mastra.ai/docs). The full API of this library can be found in [api.md](api.md).
 
 ## Installation
 
 ```sh
-# install from this staging repo
-pip install git+ssh://git@github.com/stainless-sdks/mastra-python.git
+# install from PyPI
+pip install --pre mastra-client-py
 ```
-
-> [!NOTE]
-> Once this package is [published to PyPI](https://app.stainlessapi.com/docs/guides/publish), this will become: `pip install --pre mastra`
 
 ## Usage
 
 The full API of this library can be found in [api.md](api.md).
 
 ```python
-from mastra import Mastra
+from mastra_client_py import MastraClient
 
-client = Mastra()
+client = MastraClient()
 
-client.system.retrieve_status()
+client.agents.list()
 ```
 
 ## Async usage
 
-Simply import `AsyncMastra` instead of `Mastra` and use `await` with each API call:
+Simply import `AsyncMastraClient` instead of `MastraClient` and use `await` with each API call:
 
 ```python
 import asyncio
-from mastra import AsyncMastra
+from mastra_client_py import AsyncMastraClient
 
-client = AsyncMastra()
+client = AsyncMastraClient()
 
 
 async def main() -> None:
-    await client.system.retrieve_status()
+    await client.agents.list()
 
 
 asyncio.run(main())
@@ -65,27 +62,27 @@ Typed requests and responses provide autocomplete and documentation within your 
 
 ## Handling errors
 
-When the library is unable to connect to the API (for example, due to network connection problems or a timeout), a subclass of `mastra.APIConnectionError` is raised.
+When the library is unable to connect to the API (for example, due to network connection problems or a timeout), a subclass of `mastra_client_py.APIConnectionError` is raised.
 
 When the API returns a non-success status code (that is, 4xx or 5xx
-response), a subclass of `mastra.APIStatusError` is raised, containing `status_code` and `response` properties.
+response), a subclass of `mastra_client_py.APIStatusError` is raised, containing `status_code` and `response` properties.
 
-All errors inherit from `mastra.APIError`.
+All errors inherit from `mastra_client_py.APIError`.
 
 ```python
-import mastra
-from mastra import Mastra
+import mastra_client_py
+from mastra_client_py import MastraClient
 
-client = Mastra()
+client = MastraClient()
 
 try:
-    client.system.retrieve_status()
-except mastra.APIConnectionError as e:
+    client.agents.list()
+except mastra_client_py.APIConnectionError as e:
     print("The server could not be reached")
     print(e.__cause__)  # an underlying Exception, likely raised within httpx.
-except mastra.RateLimitError as e:
+except mastra_client_py.RateLimitError as e:
     print("A 429 status code was received; we should back off a bit.")
-except mastra.APIStatusError as e:
+except mastra_client_py.APIStatusError as e:
     print("Another non-200-range status code was received")
     print(e.status_code)
     print(e.response)
@@ -113,16 +110,16 @@ Connection errors (for example, due to a network connectivity problem), 408 Requ
 You can use the `max_retries` option to configure or disable retry settings:
 
 ```python
-from mastra import Mastra
+from mastra_client_py import MastraClient
 
 # Configure the default for all requests:
-client = Mastra(
+client = MastraClient(
     # default is 2
     max_retries=0,
 )
 
 # Or, configure per-request:
-client.with_options(max_retries=5).system.retrieve_status()
+client.with_options(max_retries=5).agents.list()
 ```
 
 ### Timeouts
@@ -131,21 +128,21 @@ By default requests time out after 1 minute. You can configure this with a `time
 which accepts a float or an [`httpx.Timeout`](https://www.python-httpx.org/advanced/#fine-tuning-the-configuration) object:
 
 ```python
-from mastra import Mastra
+from mastra_client_py import MastraClient
 
 # Configure the default for all requests:
-client = Mastra(
+client = MastraClient(
     # 20 seconds (default is 1 minute)
     timeout=20.0,
 )
 
 # More granular control:
-client = Mastra(
+client = MastraClient(
     timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
 )
 
 # Override per-request:
-client.with_options(timeout=5.0).system.retrieve_status()
+client.with_options(timeout=5.0).agents.list()
 ```
 
 On timeout, an `APITimeoutError` is thrown.
@@ -158,10 +155,10 @@ Note that requests that time out are [retried twice by default](#retries).
 
 We use the standard library [`logging`](https://docs.python.org/3/library/logging.html) module.
 
-You can enable logging by setting the environment variable `MASTRA_LOG` to `info`.
+You can enable logging by setting the environment variable `MASTRA_CLIENT_LOG` to `info`.
 
 ```shell
-$ export MASTRA_LOG=info
+$ export MASTRA_CLIENT_LOG=info
 ```
 
 Or to `debug` for more verbose logging.
@@ -183,19 +180,19 @@ if response.my_field is None:
 The "raw" Response object can be accessed by prefixing `.with_raw_response.` to any HTTP method call, e.g.,
 
 ```py
-from mastra import Mastra
+from mastra_client_py import MastraClient
 
-client = Mastra()
-response = client.system.with_raw_response.retrieve_status()
+client = MastraClient()
+response = client.agents.with_raw_response.list()
 print(response.headers.get('X-My-Header'))
 
-system = response.parse()  # get the object that `system.retrieve_status()` would have returned
-print(system)
+agent = response.parse()  # get the object that `agents.list()` would have returned
+print(agent)
 ```
 
-These methods return an [`APIResponse`](https://github.com/stainless-sdks/mastra-python/tree/main/src/mastra/_response.py) object.
+These methods return an [`APIResponse`](https://github.com/mastra-ai/client-python/tree/main/src/mastra_client_py/_response.py) object.
 
-The async client returns an [`AsyncAPIResponse`](https://github.com/stainless-sdks/mastra-python/tree/main/src/mastra/_response.py) with the same structure, the only difference being `await`able methods for reading the response content.
+The async client returns an [`AsyncAPIResponse`](https://github.com/mastra-ai/client-python/tree/main/src/mastra_client_py/_response.py) with the same structure, the only difference being `await`able methods for reading the response content.
 
 #### `.with_streaming_response`
 
@@ -204,7 +201,7 @@ The above interface eagerly reads the full response body when you make the reque
 To stream the response body, use `.with_streaming_response` instead, which requires a context manager and only reads the response body once you call `.read()`, `.text()`, `.json()`, `.iter_bytes()`, `.iter_text()`, `.iter_lines()` or `.parse()`. In the async client, these are async methods.
 
 ```python
-with client.system.with_streaming_response.retrieve_status() as response:
+with client.agents.with_streaming_response.list() as response:
     print(response.headers.get("X-My-Header"))
 
     for line in response.iter_lines():
@@ -257,10 +254,10 @@ You can directly override the [httpx client](https://www.python-httpx.org/api/#c
 
 ```python
 import httpx
-from mastra import Mastra, DefaultHttpxClient
+from mastra_client_py import MastraClient, DefaultHttpxClient
 
-client = Mastra(
-    # Or use the `MASTRA_BASE_URL` env var
+client = MastraClient(
+    # Or use the `MASTRA_CLIENT_BASE_URL` env var
     base_url="http://my.test.server.example.com:8083",
     http_client=DefaultHttpxClient(
         proxy="http://my.test.proxy.example.com",
@@ -280,9 +277,9 @@ client.with_options(http_client=DefaultHttpxClient(...))
 By default the library closes underlying HTTP connections whenever the client is [garbage collected](https://docs.python.org/3/reference/datamodel.html#object.__del__). You can manually close the client using the `.close()` method if desired, or with a context manager that closes when exiting.
 
 ```py
-from mastra import Mastra
+from mastra_client_py import MastraClient
 
-with Mastra() as client:
+with MastraClient() as client:
   # make requests here
   ...
 
@@ -299,7 +296,7 @@ This package generally follows [SemVer](https://semver.org/spec/v2.0.0.html) con
 
 We take backwards-compatibility seriously and work hard to ensure you can rely on a smooth upgrade experience.
 
-We are keen for your feedback; please open an [issue](https://www.github.com/stainless-sdks/mastra-python/issues) with questions, bugs, or suggestions.
+We are keen for your feedback; please open an [issue](https://www.github.com/mastra-ai/client-python/issues) with questions, bugs, or suggestions.
 
 ### Determining the installed version
 
@@ -308,8 +305,8 @@ If you've upgraded to the latest version but aren't seeing any new features you 
 You can determine the version that is being used at runtime with:
 
 ```py
-import mastra
-print(mastra.__version__)
+import mastra_client_py
+print(mastra_client_py.__version__)
 ```
 
 ## Requirements

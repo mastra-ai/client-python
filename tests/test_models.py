@@ -7,9 +7,9 @@ import pytest
 import pydantic
 from pydantic import Field
 
-from mastra._utils import PropertyInfo
-from mastra._compat import PYDANTIC_V2, parse_obj, model_dump, model_json
-from mastra._models import BaseModel, construct_type
+from mastra_client_py._utils import PropertyInfo
+from mastra_client_py._compat import PYDANTIC_V2, parse_obj, model_dump, model_json
+from mastra_client_py._models import BaseModel, construct_type
 
 
 class BasicModel(BaseModel):

@@ -8,15 +8,15 @@ from typing_extensions import Required, Annotated, TypedDict
 
 import pytest
 
-from mastra._types import Base64FileInput
-from mastra._utils import (
+from mastra_client_py._types import Base64FileInput
+from mastra_client_py._utils import (
     PropertyInfo,
     transform as _transform,
     parse_datetime,
     async_transform as _async_transform,
 )
-from mastra._compat import PYDANTIC_V2
-from mastra._models import BaseModel
+from mastra_client_py._compat import PYDANTIC_V2
+from mastra_client_py._models import BaseModel
 
 _T = TypeVar("_T")
 
