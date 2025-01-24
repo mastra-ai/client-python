@@ -21,12 +21,17 @@ import pytest
 from respx import MockRouter
 from pydantic import ValidationError
 
-from mastra import Mastra, AsyncMastra, APIResponseValidationError
-from mastra._types import Omit
-from mastra._models import BaseModel, FinalRequestOptions
-from mastra._constants import RAW_RESPONSE_HEADER
-from mastra._exceptions import APIStatusError, APITimeoutError, APIResponseValidationError
-from mastra._base_client import DEFAULT_TIMEOUT, HTTPX_DEFAULT_TIMEOUT, BaseClient, make_request_options
+from mastra_client_py import MastraClient, AsyncMastraClient, APIResponseValidationError
+from mastra_client_py._types import Omit
+from mastra_client_py._models import BaseModel, FinalRequestOptions
+from mastra_client_py._constants import RAW_RESPONSE_HEADER
+from mastra_client_py._exceptions import APIStatusError, APITimeoutError, APIResponseValidationError
+from mastra_client_py._base_client import (
+    DEFAULT_TIMEOUT,
+    HTTPX_DEFAULT_TIMEOUT,
+    BaseClient,
+    make_request_options,
+)
 
 from .utils import update_env
 
@@ -43,7 +48,7 @@ def _low_retry_timeout(*_args: Any, **_kwargs: Any) -> float:
     return 0.1
 
 
-def _get_open_connections(client: Mastra | AsyncMastra) -> int:
+def _get_open_connections(client: MastraClient | AsyncMastraClient) -> int:
     transport = client._client._transport
     assert isinstance(transport, httpx.HTTPTransport) or isinstance(transport, httpx.AsyncHTTPTransport)
 
@@ -51,8 +56,8 @@ def _get_open_connections(client: Mastra | AsyncMastra) -> int:
     return len(pool._requests)
 
 
-class TestMastra:
-    client = Mastra(base_url=base_url, _strict_response_validation=True)
+class TestMastraClient:
+    client = MastraClient(base_url=base_url, _strict_response_validation=True)
 
     @pytest.mark.respx(base_url=base_url)
     def test_raw_response(self, respx_mock: MockRouter) -> None:
@@ -95,7 +100,7 @@ class TestMastra:
         assert isinstance(self.client.timeout, httpx.Timeout)
 
     def test_copy_default_headers(self) -> None:
-        client = Mastra(base_url=base_url, _strict_response_validation=True, default_headers={"X-Foo": "bar"})
+        client = MastraClient(base_url=base_url, _strict_response_validation=True, default_headers={"X-Foo": "bar"})
         assert client.default_headers["X-Foo"] == "bar"
 
         # does not override the already given value when not specified
@@ -127,7 +132,7 @@ class TestMastra:
             client.copy(set_default_headers={}, default_headers={"X-Foo": "Bar"})
 
     def test_copy_default_query(self) -> None:
-        client = Mastra(base_url=base_url, _strict_response_validation=True, default_query={"foo": "bar"})
+        client = MastraClient(base_url=base_url, _strict_response_validation=True, default_query={"foo": "bar"})
         assert _get_params(client)["foo"] == "bar"
 
         # does not override the already given value when not specified
@@ -216,10 +221,10 @@ class TestMastra:
                         # to_raw_response_wrapper leaks through the @functools.wraps() decorator.
                         #
                         # removing the decorator fixes the leak for reasons we don't understand.
-                        "mastra/_legacy_response.py",
-                        "mastra/_response.py",
+                        "mastra_client_py/_legacy_response.py",
+                        "mastra_client_py/_response.py",
                         # pydantic.BaseModel.model_dump || pydantic.BaseModel.dict leak memory for some reason.
-                        "mastra/_compat.py",
+                        "mastra_client_py/_compat.py",
                         # Standard library leaks we don't care about.
                         "/logging/__init__.py",
                     ]
@@ -250,7 +255,7 @@ class TestMastra:
         assert timeout == httpx.Timeout(100.0)
 
     def test_client_timeout_option(self) -> None:
-        client = Mastra(base_url=base_url, _strict_response_validation=True, timeout=httpx.Timeout(0))
+        client = MastraClient(base_url=base_url, _strict_response_validation=True, timeout=httpx.Timeout(0))
 
         request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
         timeout = httpx.Timeout(**request.extensions["timeout"])  # type: ignore
@@ -259,7 +264,7 @@ class TestMastra:
     def test_http_client_timeout_option(self) -> None:
         # custom timeout given to the httpx client should be used
         with httpx.Client(timeout=None) as http_client:
-            client = Mastra(base_url=base_url, _strict_response_validation=True, http_client=http_client)
+            client = MastraClient(base_url=base_url, _strict_response_validation=True, http_client=http_client)
 
             request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
             timeout = httpx.Timeout(**request.extensions["timeout"])  # type: ignore
@@ -267,7 +272,7 @@ class TestMastra:
 
         # no timeout given to the httpx client should not use the httpx default
         with httpx.Client() as http_client:
-            client = Mastra(base_url=base_url, _strict_response_validation=True, http_client=http_client)
+            client = MastraClient(base_url=base_url, _strict_response_validation=True, http_client=http_client)
 
             request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
             timeout = httpx.Timeout(**request.extensions["timeout"])  # type: ignore
@@ -275,7 +280,7 @@ class TestMastra:
 
         # explicitly passing the default timeout currently results in it being ignored
         with httpx.Client(timeout=HTTPX_DEFAULT_TIMEOUT) as http_client:
-            client = Mastra(base_url=base_url, _strict_response_validation=True, http_client=http_client)
+            client = MastraClient(base_url=base_url, _strict_response_validation=True, http_client=http_client)
 
             request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
             timeout = httpx.Timeout(**request.extensions["timeout"])  # type: ignore
@@ -284,15 +289,15 @@ class TestMastra:
     async def test_invalid_http_client(self) -> None:
         with pytest.raises(TypeError, match="Invalid `http_client` arg"):
             async with httpx.AsyncClient() as http_client:
-                Mastra(base_url=base_url, _strict_response_validation=True, http_client=cast(Any, http_client))
+                MastraClient(base_url=base_url, _strict_response_validation=True, http_client=cast(Any, http_client))
 
     def test_default_headers_option(self) -> None:
-        client = Mastra(base_url=base_url, _strict_response_validation=True, default_headers={"X-Foo": "bar"})
+        client = MastraClient(base_url=base_url, _strict_response_validation=True, default_headers={"X-Foo": "bar"})
         request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
         assert request.headers.get("x-foo") == "bar"
         assert request.headers.get("x-stainless-lang") == "python"
 
-        client2 = Mastra(
+        client2 = MastraClient(
             base_url=base_url,
             _strict_response_validation=True,
             default_headers={
@@ -305,7 +310,7 @@ class TestMastra:
         assert request.headers.get("x-stainless-lang") == "my-overriding-header"
 
     def test_default_query_option(self) -> None:
-        client = Mastra(base_url=base_url, _strict_response_validation=True, default_query={"query_param": "bar"})
+        client = MastraClient(base_url=base_url, _strict_response_validation=True, default_query={"query_param": "bar"})
         request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
         url = httpx.URL(request.url)
         assert dict(url.params) == {"query_param": "bar"}
@@ -417,7 +422,7 @@ class TestMastra:
         params = dict(request.url.params)
         assert params == {"foo": "2"}
 
-    def test_multipart_repeating_array(self, client: Mastra) -> None:
+    def test_multipart_repeating_array(self, client: MastraClient) -> None:
         request = client._build_request(
             FinalRequestOptions.construct(
                 method="get",
@@ -504,7 +509,7 @@ class TestMastra:
         assert response.foo == 2
 
     def test_base_url_setter(self) -> None:
-        client = Mastra(base_url="https://example.com/from_init", _strict_response_validation=True)
+        client = MastraClient(base_url="https://example.com/from_init", _strict_response_validation=True)
         assert client.base_url == "https://example.com/from_init/"
 
         client.base_url = "https://example.com/from_setter"  # type: ignore[assignment]
@@ -512,15 +517,15 @@ class TestMastra:
         assert client.base_url == "https://example.com/from_setter/"
 
     def test_base_url_env(self) -> None:
-        with update_env(MASTRA_BASE_URL="http://localhost:5000/from/env"):
-            client = Mastra(_strict_response_validation=True)
+        with update_env(MASTRA_CLIENT_BASE_URL="http://localhost:5000/from/env"):
+            client = MastraClient(_strict_response_validation=True)
             assert client.base_url == "http://localhost:5000/from/env/"
 
     @pytest.mark.parametrize(
         "client",
         [
-            Mastra(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
-            Mastra(
+            MastraClient(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
+            MastraClient(
                 base_url="http://localhost:5000/custom/path/",
                 _strict_response_validation=True,
                 http_client=httpx.Client(),
@@ -528,7 +533,7 @@ class TestMastra:
         ],
         ids=["standard", "custom http client"],
     )
-    def test_base_url_trailing_slash(self, client: Mastra) -> None:
+    def test_base_url_trailing_slash(self, client: MastraClient) -> None:
         request = client._build_request(
             FinalRequestOptions(
                 method="post",
@@ -541,8 +546,8 @@ class TestMastra:
     @pytest.mark.parametrize(
         "client",
         [
-            Mastra(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
-            Mastra(
+            MastraClient(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
+            MastraClient(
                 base_url="http://localhost:5000/custom/path/",
                 _strict_response_validation=True,
                 http_client=httpx.Client(),
@@ -550,7 +555,7 @@ class TestMastra:
         ],
         ids=["standard", "custom http client"],
     )
-    def test_base_url_no_trailing_slash(self, client: Mastra) -> None:
+    def test_base_url_no_trailing_slash(self, client: MastraClient) -> None:
         request = client._build_request(
             FinalRequestOptions(
                 method="post",
@@ -563,8 +568,8 @@ class TestMastra:
     @pytest.mark.parametrize(
         "client",
         [
-            Mastra(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
-            Mastra(
+            MastraClient(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
+            MastraClient(
                 base_url="http://localhost:5000/custom/path/",
                 _strict_response_validation=True,
                 http_client=httpx.Client(),
@@ -572,7 +577,7 @@ class TestMastra:
         ],
         ids=["standard", "custom http client"],
     )
-    def test_absolute_request_url(self, client: Mastra) -> None:
+    def test_absolute_request_url(self, client: MastraClient) -> None:
         request = client._build_request(
             FinalRequestOptions(
                 method="post",
@@ -583,7 +588,7 @@ class TestMastra:
         assert request.url == "https://myapi.com/foo"
 
     def test_copied_client_does_not_close_http(self) -> None:
-        client = Mastra(base_url=base_url, _strict_response_validation=True)
+        client = MastraClient(base_url=base_url, _strict_response_validation=True)
         assert not client.is_closed()
 
         copied = client.copy()
@@ -594,7 +599,7 @@ class TestMastra:
         assert not client.is_closed()
 
     def test_client_context_manager(self) -> None:
-        client = Mastra(base_url=base_url, _strict_response_validation=True)
+        client = MastraClient(base_url=base_url, _strict_response_validation=True)
         with client as c2:
             assert c2 is client
             assert not c2.is_closed()
@@ -615,7 +620,7 @@ class TestMastra:
 
     def test_client_max_retries_validation(self) -> None:
         with pytest.raises(TypeError, match=r"max_retries cannot be None"):
-            Mastra(base_url=base_url, _strict_response_validation=True, max_retries=cast(Any, None))
+            MastraClient(base_url=base_url, _strict_response_validation=True, max_retries=cast(Any, None))
 
     @pytest.mark.respx(base_url=base_url)
     def test_received_text_for_expected_json(self, respx_mock: MockRouter) -> None:
@@ -624,12 +629,12 @@ class TestMastra:
 
         respx_mock.get("/foo").mock(return_value=httpx.Response(200, text="my-custom-format"))
 
-        strict_client = Mastra(base_url=base_url, _strict_response_validation=True)
+        strict_client = MastraClient(base_url=base_url, _strict_response_validation=True)
 
         with pytest.raises(APIResponseValidationError):
             strict_client.get("/foo", cast_to=Model)
 
-        client = Mastra(base_url=base_url, _strict_response_validation=False)
+        client = MastraClient(base_url=base_url, _strict_response_validation=False)
 
         response = client.get("/foo", cast_to=Model)
         assert isinstance(response, str)  # type: ignore[unreachable]
@@ -657,40 +662,40 @@ class TestMastra:
     )
     @mock.patch("time.time", mock.MagicMock(return_value=1696004797))
     def test_parse_retry_after_header(self, remaining_retries: int, retry_after: str, timeout: float) -> None:
-        client = Mastra(base_url=base_url, _strict_response_validation=True)
+        client = MastraClient(base_url=base_url, _strict_response_validation=True)
 
         headers = httpx.Headers({"retry-after": retry_after})
         options = FinalRequestOptions(method="get", url="/foo", max_retries=3)
         calculated = client._calculate_retry_timeout(remaining_retries, options, headers)
         assert calculated == pytest.approx(timeout, 0.5 * 0.875)  # pyright: ignore[reportUnknownMemberType]
 
-    @mock.patch("mastra._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
+    @mock.patch("mastra_client_py._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
     @pytest.mark.respx(base_url=base_url)
     def test_retrying_timeout_errors_doesnt_leak(self, respx_mock: MockRouter) -> None:
-        respx_mock.get("/api").mock(side_effect=httpx.TimeoutException("Test timeout error"))
+        respx_mock.get("/api/agents").mock(side_effect=httpx.TimeoutException("Test timeout error"))
 
         with pytest.raises(APITimeoutError):
-            self.client.get("/api", cast_to=httpx.Response, options={"headers": {RAW_RESPONSE_HEADER: "stream"}})
+            self.client.get("/api/agents", cast_to=httpx.Response, options={"headers": {RAW_RESPONSE_HEADER: "stream"}})
 
         assert _get_open_connections(self.client) == 0
 
-    @mock.patch("mastra._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
+    @mock.patch("mastra_client_py._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
     @pytest.mark.respx(base_url=base_url)
     def test_retrying_status_errors_doesnt_leak(self, respx_mock: MockRouter) -> None:
-        respx_mock.get("/api").mock(return_value=httpx.Response(500))
+        respx_mock.get("/api/agents").mock(return_value=httpx.Response(500))
 
         with pytest.raises(APIStatusError):
-            self.client.get("/api", cast_to=httpx.Response, options={"headers": {RAW_RESPONSE_HEADER: "stream"}})
+            self.client.get("/api/agents", cast_to=httpx.Response, options={"headers": {RAW_RESPONSE_HEADER: "stream"}})
 
         assert _get_open_connections(self.client) == 0
 
     @pytest.mark.parametrize("failures_before_success", [0, 2, 4])
-    @mock.patch("mastra._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
+    @mock.patch("mastra_client_py._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
     @pytest.mark.respx(base_url=base_url)
     @pytest.mark.parametrize("failure_mode", ["status", "exception"])
     def test_retries_taken(
         self,
-        client: Mastra,
+        client: MastraClient,
         failures_before_success: int,
         failure_mode: Literal["status", "exception"],
         respx_mock: MockRouter,
@@ -708,18 +713,18 @@ class TestMastra:
                 return httpx.Response(500)
             return httpx.Response(200)
 
-        respx_mock.get("/api").mock(side_effect=retry_handler)
+        respx_mock.get("/api/agents").mock(side_effect=retry_handler)
 
-        response = client.system.with_raw_response.retrieve_status()
+        response = client.agents.with_raw_response.list()
 
         assert response.retries_taken == failures_before_success
         assert int(response.http_request.headers.get("x-stainless-retry-count")) == failures_before_success
 
     @pytest.mark.parametrize("failures_before_success", [0, 2, 4])
-    @mock.patch("mastra._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
+    @mock.patch("mastra_client_py._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
     @pytest.mark.respx(base_url=base_url)
     def test_omit_retry_count_header(
-        self, client: Mastra, failures_before_success: int, respx_mock: MockRouter
+        self, client: MastraClient, failures_before_success: int, respx_mock: MockRouter
     ) -> None:
         client = client.with_options(max_retries=4)
 
@@ -732,17 +737,17 @@ class TestMastra:
                 return httpx.Response(500)
             return httpx.Response(200)
 
-        respx_mock.get("/api").mock(side_effect=retry_handler)
+        respx_mock.get("/api/agents").mock(side_effect=retry_handler)
 
-        response = client.system.with_raw_response.retrieve_status(extra_headers={"x-stainless-retry-count": Omit()})
+        response = client.agents.with_raw_response.list(extra_headers={"x-stainless-retry-count": Omit()})
 
         assert len(response.http_request.headers.get_list("x-stainless-retry-count")) == 0
 
     @pytest.mark.parametrize("failures_before_success", [0, 2, 4])
-    @mock.patch("mastra._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
+    @mock.patch("mastra_client_py._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
     @pytest.mark.respx(base_url=base_url)
     def test_overwrite_retry_count_header(
-        self, client: Mastra, failures_before_success: int, respx_mock: MockRouter
+        self, client: MastraClient, failures_before_success: int, respx_mock: MockRouter
     ) -> None:
         client = client.with_options(max_retries=4)
 
@@ -755,15 +760,15 @@ class TestMastra:
                 return httpx.Response(500)
             return httpx.Response(200)
 
-        respx_mock.get("/api").mock(side_effect=retry_handler)
+        respx_mock.get("/api/agents").mock(side_effect=retry_handler)
 
-        response = client.system.with_raw_response.retrieve_status(extra_headers={"x-stainless-retry-count": "42"})
+        response = client.agents.with_raw_response.list(extra_headers={"x-stainless-retry-count": "42"})
 
         assert response.http_request.headers.get("x-stainless-retry-count") == "42"
 
 
-class TestAsyncMastra:
-    client = AsyncMastra(base_url=base_url, _strict_response_validation=True)
+class TestAsyncMastraClient:
+    client = AsyncMastraClient(base_url=base_url, _strict_response_validation=True)
 
     @pytest.mark.respx(base_url=base_url)
     @pytest.mark.asyncio
@@ -808,7 +813,9 @@ class TestAsyncMastra:
         assert isinstance(self.client.timeout, httpx.Timeout)
 
     def test_copy_default_headers(self) -> None:
-        client = AsyncMastra(base_url=base_url, _strict_response_validation=True, default_headers={"X-Foo": "bar"})
+        client = AsyncMastraClient(
+            base_url=base_url, _strict_response_validation=True, default_headers={"X-Foo": "bar"}
+        )
         assert client.default_headers["X-Foo"] == "bar"
 
         # does not override the already given value when not specified
@@ -840,7 +847,7 @@ class TestAsyncMastra:
             client.copy(set_default_headers={}, default_headers={"X-Foo": "Bar"})
 
     def test_copy_default_query(self) -> None:
-        client = AsyncMastra(base_url=base_url, _strict_response_validation=True, default_query={"foo": "bar"})
+        client = AsyncMastraClient(base_url=base_url, _strict_response_validation=True, default_query={"foo": "bar"})
         assert _get_params(client)["foo"] == "bar"
 
         # does not override the already given value when not specified
@@ -929,10 +936,10 @@ class TestAsyncMastra:
                         # to_raw_response_wrapper leaks through the @functools.wraps() decorator.
                         #
                         # removing the decorator fixes the leak for reasons we don't understand.
-                        "mastra/_legacy_response.py",
-                        "mastra/_response.py",
+                        "mastra_client_py/_legacy_response.py",
+                        "mastra_client_py/_response.py",
                         # pydantic.BaseModel.model_dump || pydantic.BaseModel.dict leak memory for some reason.
-                        "mastra/_compat.py",
+                        "mastra_client_py/_compat.py",
                         # Standard library leaks we don't care about.
                         "/logging/__init__.py",
                     ]
@@ -963,7 +970,7 @@ class TestAsyncMastra:
         assert timeout == httpx.Timeout(100.0)
 
     async def test_client_timeout_option(self) -> None:
-        client = AsyncMastra(base_url=base_url, _strict_response_validation=True, timeout=httpx.Timeout(0))
+        client = AsyncMastraClient(base_url=base_url, _strict_response_validation=True, timeout=httpx.Timeout(0))
 
         request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
         timeout = httpx.Timeout(**request.extensions["timeout"])  # type: ignore
@@ -972,7 +979,7 @@ class TestAsyncMastra:
     async def test_http_client_timeout_option(self) -> None:
         # custom timeout given to the httpx client should be used
         async with httpx.AsyncClient(timeout=None) as http_client:
-            client = AsyncMastra(base_url=base_url, _strict_response_validation=True, http_client=http_client)
+            client = AsyncMastraClient(base_url=base_url, _strict_response_validation=True, http_client=http_client)
 
             request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
             timeout = httpx.Timeout(**request.extensions["timeout"])  # type: ignore
@@ -980,7 +987,7 @@ class TestAsyncMastra:
 
         # no timeout given to the httpx client should not use the httpx default
         async with httpx.AsyncClient() as http_client:
-            client = AsyncMastra(base_url=base_url, _strict_response_validation=True, http_client=http_client)
+            client = AsyncMastraClient(base_url=base_url, _strict_response_validation=True, http_client=http_client)
 
             request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
             timeout = httpx.Timeout(**request.extensions["timeout"])  # type: ignore
@@ -988,7 +995,7 @@ class TestAsyncMastra:
 
         # explicitly passing the default timeout currently results in it being ignored
         async with httpx.AsyncClient(timeout=HTTPX_DEFAULT_TIMEOUT) as http_client:
-            client = AsyncMastra(base_url=base_url, _strict_response_validation=True, http_client=http_client)
+            client = AsyncMastraClient(base_url=base_url, _strict_response_validation=True, http_client=http_client)
 
             request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
             timeout = httpx.Timeout(**request.extensions["timeout"])  # type: ignore
@@ -997,15 +1004,19 @@ class TestAsyncMastra:
     def test_invalid_http_client(self) -> None:
         with pytest.raises(TypeError, match="Invalid `http_client` arg"):
             with httpx.Client() as http_client:
-                AsyncMastra(base_url=base_url, _strict_response_validation=True, http_client=cast(Any, http_client))
+                AsyncMastraClient(
+                    base_url=base_url, _strict_response_validation=True, http_client=cast(Any, http_client)
+                )
 
     def test_default_headers_option(self) -> None:
-        client = AsyncMastra(base_url=base_url, _strict_response_validation=True, default_headers={"X-Foo": "bar"})
+        client = AsyncMastraClient(
+            base_url=base_url, _strict_response_validation=True, default_headers={"X-Foo": "bar"}
+        )
         request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
         assert request.headers.get("x-foo") == "bar"
         assert request.headers.get("x-stainless-lang") == "python"
 
-        client2 = AsyncMastra(
+        client2 = AsyncMastraClient(
             base_url=base_url,
             _strict_response_validation=True,
             default_headers={
@@ -1018,7 +1029,9 @@ class TestAsyncMastra:
         assert request.headers.get("x-stainless-lang") == "my-overriding-header"
 
     def test_default_query_option(self) -> None:
-        client = AsyncMastra(base_url=base_url, _strict_response_validation=True, default_query={"query_param": "bar"})
+        client = AsyncMastraClient(
+            base_url=base_url, _strict_response_validation=True, default_query={"query_param": "bar"}
+        )
         request = client._build_request(FinalRequestOptions(method="get", url="/foo"))
         url = httpx.URL(request.url)
         assert dict(url.params) == {"query_param": "bar"}
@@ -1130,7 +1143,7 @@ class TestAsyncMastra:
         params = dict(request.url.params)
         assert params == {"foo": "2"}
 
-    def test_multipart_repeating_array(self, async_client: AsyncMastra) -> None:
+    def test_multipart_repeating_array(self, async_client: AsyncMastraClient) -> None:
         request = async_client._build_request(
             FinalRequestOptions.construct(
                 method="get",
@@ -1217,7 +1230,7 @@ class TestAsyncMastra:
         assert response.foo == 2
 
     def test_base_url_setter(self) -> None:
-        client = AsyncMastra(base_url="https://example.com/from_init", _strict_response_validation=True)
+        client = AsyncMastraClient(base_url="https://example.com/from_init", _strict_response_validation=True)
         assert client.base_url == "https://example.com/from_init/"
 
         client.base_url = "https://example.com/from_setter"  # type: ignore[assignment]
@@ -1225,15 +1238,15 @@ class TestAsyncMastra:
         assert client.base_url == "https://example.com/from_setter/"
 
     def test_base_url_env(self) -> None:
-        with update_env(MASTRA_BASE_URL="http://localhost:5000/from/env"):
-            client = AsyncMastra(_strict_response_validation=True)
+        with update_env(MASTRA_CLIENT_BASE_URL="http://localhost:5000/from/env"):
+            client = AsyncMastraClient(_strict_response_validation=True)
             assert client.base_url == "http://localhost:5000/from/env/"
 
     @pytest.mark.parametrize(
         "client",
         [
-            AsyncMastra(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
-            AsyncMastra(
+            AsyncMastraClient(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
+            AsyncMastraClient(
                 base_url="http://localhost:5000/custom/path/",
                 _strict_response_validation=True,
                 http_client=httpx.AsyncClient(),
@@ -1241,7 +1254,7 @@ class TestAsyncMastra:
         ],
         ids=["standard", "custom http client"],
     )
-    def test_base_url_trailing_slash(self, client: AsyncMastra) -> None:
+    def test_base_url_trailing_slash(self, client: AsyncMastraClient) -> None:
         request = client._build_request(
             FinalRequestOptions(
                 method="post",
@@ -1254,8 +1267,8 @@ class TestAsyncMastra:
     @pytest.mark.parametrize(
         "client",
         [
-            AsyncMastra(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
-            AsyncMastra(
+            AsyncMastraClient(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
+            AsyncMastraClient(
                 base_url="http://localhost:5000/custom/path/",
                 _strict_response_validation=True,
                 http_client=httpx.AsyncClient(),
@@ -1263,7 +1276,7 @@ class TestAsyncMastra:
         ],
         ids=["standard", "custom http client"],
     )
-    def test_base_url_no_trailing_slash(self, client: AsyncMastra) -> None:
+    def test_base_url_no_trailing_slash(self, client: AsyncMastraClient) -> None:
         request = client._build_request(
             FinalRequestOptions(
                 method="post",
@@ -1276,8 +1289,8 @@ class TestAsyncMastra:
     @pytest.mark.parametrize(
         "client",
         [
-            AsyncMastra(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
-            AsyncMastra(
+            AsyncMastraClient(base_url="http://localhost:5000/custom/path/", _strict_response_validation=True),
+            AsyncMastraClient(
                 base_url="http://localhost:5000/custom/path/",
                 _strict_response_validation=True,
                 http_client=httpx.AsyncClient(),
@@ -1285,7 +1298,7 @@ class TestAsyncMastra:
         ],
         ids=["standard", "custom http client"],
     )
-    def test_absolute_request_url(self, client: AsyncMastra) -> None:
+    def test_absolute_request_url(self, client: AsyncMastraClient) -> None:
         request = client._build_request(
             FinalRequestOptions(
                 method="post",
@@ -1296,7 +1309,7 @@ class TestAsyncMastra:
         assert request.url == "https://myapi.com/foo"
 
     async def test_copied_client_does_not_close_http(self) -> None:
-        client = AsyncMastra(base_url=base_url, _strict_response_validation=True)
+        client = AsyncMastraClient(base_url=base_url, _strict_response_validation=True)
         assert not client.is_closed()
 
         copied = client.copy()
@@ -1308,7 +1321,7 @@ class TestAsyncMastra:
         assert not client.is_closed()
 
     async def test_client_context_manager(self) -> None:
-        client = AsyncMastra(base_url=base_url, _strict_response_validation=True)
+        client = AsyncMastraClient(base_url=base_url, _strict_response_validation=True)
         async with client as c2:
             assert c2 is client
             assert not c2.is_closed()
@@ -1330,7 +1343,7 @@ class TestAsyncMastra:
 
     async def test_client_max_retries_validation(self) -> None:
         with pytest.raises(TypeError, match=r"max_retries cannot be None"):
-            AsyncMastra(base_url=base_url, _strict_response_validation=True, max_retries=cast(Any, None))
+            AsyncMastraClient(base_url=base_url, _strict_response_validation=True, max_retries=cast(Any, None))
 
     @pytest.mark.respx(base_url=base_url)
     @pytest.mark.asyncio
@@ -1340,12 +1353,12 @@ class TestAsyncMastra:
 
         respx_mock.get("/foo").mock(return_value=httpx.Response(200, text="my-custom-format"))
 
-        strict_client = AsyncMastra(base_url=base_url, _strict_response_validation=True)
+        strict_client = AsyncMastraClient(base_url=base_url, _strict_response_validation=True)
 
         with pytest.raises(APIResponseValidationError):
             await strict_client.get("/foo", cast_to=Model)
 
-        client = AsyncMastra(base_url=base_url, _strict_response_validation=False)
+        client = AsyncMastraClient(base_url=base_url, _strict_response_validation=False)
 
         response = await client.get("/foo", cast_to=Model)
         assert isinstance(response, str)  # type: ignore[unreachable]
@@ -1374,41 +1387,45 @@ class TestAsyncMastra:
     @mock.patch("time.time", mock.MagicMock(return_value=1696004797))
     @pytest.mark.asyncio
     async def test_parse_retry_after_header(self, remaining_retries: int, retry_after: str, timeout: float) -> None:
-        client = AsyncMastra(base_url=base_url, _strict_response_validation=True)
+        client = AsyncMastraClient(base_url=base_url, _strict_response_validation=True)
 
         headers = httpx.Headers({"retry-after": retry_after})
         options = FinalRequestOptions(method="get", url="/foo", max_retries=3)
         calculated = client._calculate_retry_timeout(remaining_retries, options, headers)
         assert calculated == pytest.approx(timeout, 0.5 * 0.875)  # pyright: ignore[reportUnknownMemberType]
 
-    @mock.patch("mastra._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
+    @mock.patch("mastra_client_py._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
     @pytest.mark.respx(base_url=base_url)
     async def test_retrying_timeout_errors_doesnt_leak(self, respx_mock: MockRouter) -> None:
-        respx_mock.get("/api").mock(side_effect=httpx.TimeoutException("Test timeout error"))
+        respx_mock.get("/api/agents").mock(side_effect=httpx.TimeoutException("Test timeout error"))
 
         with pytest.raises(APITimeoutError):
-            await self.client.get("/api", cast_to=httpx.Response, options={"headers": {RAW_RESPONSE_HEADER: "stream"}})
+            await self.client.get(
+                "/api/agents", cast_to=httpx.Response, options={"headers": {RAW_RESPONSE_HEADER: "stream"}}
+            )
 
         assert _get_open_connections(self.client) == 0
 
-    @mock.patch("mastra._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
+    @mock.patch("mastra_client_py._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
     @pytest.mark.respx(base_url=base_url)
     async def test_retrying_status_errors_doesnt_leak(self, respx_mock: MockRouter) -> None:
-        respx_mock.get("/api").mock(return_value=httpx.Response(500))
+        respx_mock.get("/api/agents").mock(return_value=httpx.Response(500))
 
         with pytest.raises(APIStatusError):
-            await self.client.get("/api", cast_to=httpx.Response, options={"headers": {RAW_RESPONSE_HEADER: "stream"}})
+            await self.client.get(
+                "/api/agents", cast_to=httpx.Response, options={"headers": {RAW_RESPONSE_HEADER: "stream"}}
+            )
 
         assert _get_open_connections(self.client) == 0
 
     @pytest.mark.parametrize("failures_before_success", [0, 2, 4])
-    @mock.patch("mastra._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
+    @mock.patch("mastra_client_py._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
     @pytest.mark.respx(base_url=base_url)
     @pytest.mark.asyncio
     @pytest.mark.parametrize("failure_mode", ["status", "exception"])
     async def test_retries_taken(
         self,
-        async_client: AsyncMastra,
+        async_client: AsyncMastraClient,
         failures_before_success: int,
         failure_mode: Literal["status", "exception"],
         respx_mock: MockRouter,
@@ -1426,19 +1443,19 @@ class TestAsyncMastra:
                 return httpx.Response(500)
             return httpx.Response(200)
 
-        respx_mock.get("/api").mock(side_effect=retry_handler)
+        respx_mock.get("/api/agents").mock(side_effect=retry_handler)
 
-        response = await client.system.with_raw_response.retrieve_status()
+        response = await client.agents.with_raw_response.list()
 
         assert response.retries_taken == failures_before_success
         assert int(response.http_request.headers.get("x-stainless-retry-count")) == failures_before_success
 
     @pytest.mark.parametrize("failures_before_success", [0, 2, 4])
-    @mock.patch("mastra._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
+    @mock.patch("mastra_client_py._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
     @pytest.mark.respx(base_url=base_url)
     @pytest.mark.asyncio
     async def test_omit_retry_count_header(
-        self, async_client: AsyncMastra, failures_before_success: int, respx_mock: MockRouter
+        self, async_client: AsyncMastraClient, failures_before_success: int, respx_mock: MockRouter
     ) -> None:
         client = async_client.with_options(max_retries=4)
 
@@ -1451,20 +1468,18 @@ class TestAsyncMastra:
                 return httpx.Response(500)
             return httpx.Response(200)
 
-        respx_mock.get("/api").mock(side_effect=retry_handler)
+        respx_mock.get("/api/agents").mock(side_effect=retry_handler)
 
-        response = await client.system.with_raw_response.retrieve_status(
-            extra_headers={"x-stainless-retry-count": Omit()}
-        )
+        response = await client.agents.with_raw_response.list(extra_headers={"x-stainless-retry-count": Omit()})
 
         assert len(response.http_request.headers.get_list("x-stainless-retry-count")) == 0
 
     @pytest.mark.parametrize("failures_before_success", [0, 2, 4])
-    @mock.patch("mastra._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
+    @mock.patch("mastra_client_py._base_client.BaseClient._calculate_retry_timeout", _low_retry_timeout)
     @pytest.mark.respx(base_url=base_url)
     @pytest.mark.asyncio
     async def test_overwrite_retry_count_header(
-        self, async_client: AsyncMastra, failures_before_success: int, respx_mock: MockRouter
+        self, async_client: AsyncMastraClient, failures_before_success: int, respx_mock: MockRouter
     ) -> None:
         client = async_client.with_options(max_retries=4)
 
@@ -1477,11 +1492,9 @@ class TestAsyncMastra:
                 return httpx.Response(500)
             return httpx.Response(200)
 
-        respx_mock.get("/api").mock(side_effect=retry_handler)
+        respx_mock.get("/api/agents").mock(side_effect=retry_handler)
 
-        response = await client.system.with_raw_response.retrieve_status(
-            extra_headers={"x-stainless-retry-count": "42"}
-        )
+        response = await client.agents.with_raw_response.list(extra_headers={"x-stainless-retry-count": "42"})
 
         assert response.http_request.headers.get("x-stainless-retry-count") == "42"
 
@@ -1496,8 +1509,8 @@ class TestAsyncMastra:
         import nest_asyncio
         import threading
 
-        from mastra._utils import asyncify
-        from mastra._base_client import get_platform 
+        from mastra_client_py._utils import asyncify
+        from mastra_client_py._base_client import get_platform 
 
         async def test_main() -> None:
             result = await asyncify(get_platform)()

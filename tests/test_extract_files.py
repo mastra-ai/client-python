@@ -4,8 +4,8 @@ from typing import Sequence
 
 import pytest
 
-from mastra._types import FileTypes
-from mastra._utils import extract_files
+from mastra_client_py._types import FileTypes
+from mastra_client_py._utils import extract_files
 
 
 def test_removes_files_from_input() -> None:
